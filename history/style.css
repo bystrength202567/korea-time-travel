@@ -496,3 +496,5 @@ body.in-world main { max-width: none; padding: 0; }
 .gate-era.here { opacity: .55; cursor: default; }
 .gate-era:not(.here):hover { background: color-mix(in srgb, var(--c) 28%, transparent); }
 @media (max-width: 480px) { .gate-grid { grid-template-columns: repeat(2, 1fr); } }
+.w-actions button[data-action="gate"] { color: #f3d27a; }
+.w-actions button[data-action="gate"] span { filter: drop-shadow(0 0 6px #f3d27a88); }

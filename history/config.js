@@ -11,5 +11,7 @@ window.DALBIT_CONFIG = {
   siteUrl: "",
   // 실제 회원가입이 되는 공식 사이트 (GitHub Pages). claude.ai 미리보기 화면에서 안내 링크로 보여요.
   officialUrl: "https://bystrength202567.github.io/korea-time-travel/",
+  // 꾸미기 장신구 판매 준비: true로 바꾸면 ✨프리미엄 장신구는 산 사람만 쓸 수 있어요 (지금은 모두 무료 체험)
+  shop: { lockPremium: false },
   artifactUrl: "https://claude.ai/artifact/ECAJffSiiuVVWLcjJ7r5uh",
 };

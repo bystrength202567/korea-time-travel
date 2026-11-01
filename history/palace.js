@@ -58,8 +58,10 @@ const PSTR = {
     role: "신분",
     robe: "옷 색",
     deco: "장식·치마 색",
-    skin: "피부색",
-    acc: "노리개 달기",
+    acc: "장신구",
+    accNote: "우리 문화유산에서 디자인을 따온 장신구예요. 칸마다 하나씩 고를 수 있어요.",
+    accFree: "프리미엄 아이템 · 지금은 오픈 기념 무료 체험",
+    accSoon: "곧 만나볼 수 있는 프리미엄 아이템이에요.",
     enter: (place) => `🏯 ${place} 입장하기`,
     rotateHint: "드래그해서 돌려 보세요",
     crowd: (n) => `궁인 ${n}`,
@@ -76,8 +78,10 @@ const PSTR = {
     role: "Role",
     robe: "Robe color",
     deco: "Trim / skirt color",
-    skin: "Skin tone",
-    acc: "Add norigae tassel",
+    acc: "Accessories",
+    accNote: "Accessories designed after Korean cultural heritage. Pick one per slot.",
+    accFree: "Premium item · free to try for our launch",
+    accSoon: "A premium item coming soon.",
     enter: (place) => `🏯 Enter ${place}`,
     rotateHint: "Drag to rotate",
     crowd: (n) => `${n} courtiers`,
@@ -124,11 +128,11 @@ function savePalaceAvatar(eraId, a) {
 }
 function palaceAvatarOpts(eraId, a) {
   const c = eraCostume(eraId, a.role);
-  return { body: c.body, hat: c.hat, patch: c.patch, weapon: c.weapon, robe: a.robe, deco: a.deco, skin: a.skin, acc: a.acc };
+  return { body: c.body, hat: c.hat, patch: c.patch, weapon: c.weapon, robe: a.robe, deco: a.deco, skin: SKINS[1], acc: accList(a.acc) };
 }
 function defaultLook(eraId, role) {
   const c = eraCostume(eraId, role);
-  return { robe: c.robe, deco: c.deco, acc: !!c.acc };
+  return { robe: c.robe, deco: c.deco };
 }
 
 /* ---------- 캐릭터 꾸미기 ---------- */
@@ -137,7 +141,8 @@ function renderPalaceDresser(era) {
   const p = P();
   const info = palaceInfo(era.id);
   const profile = loadProfile() || {};
-  const a = loadPalaceAvatar(era.id) || { role: "king", ...defaultLook(era.id, "king"), skin: SKINS[1], name: profile.nick || profile.name || randomNick() };
+  const a = loadPalaceAvatar(era.id) || { role: "king", ...defaultLook(era.id, "king"), acc: [], name: profile.nick || profile.name || randomNick() };
+  a.acc = accList(a.acc);
   delete app.dataset.era;
   app.style.setProperty("--c", era.color);
   const swatches = (key) => PALACE_COLORS.map(([ko, en, hex]) => `<button class="swatch" data-key="${key}" data-v="${hex}" style="--s:${hex}" title="${LANG === "en" ? en : ko}"></button>`).join("");
@@ -158,8 +163,10 @@ function renderPalaceDresser(era) {
           <div class="role-grid">${ROLE_IDS.map((id) => `<button class="role" data-role="${id}"><span>${ROLE_BASE[id].emoji}</span>${roleName(era.id, id)}</button>`).join("")}</div>
           <h3>${p.robe}</h3><div class="swatches">${swatches("robe")}</div>
           <h3>${p.deco}</h3><div class="swatches">${swatches("deco")}</div>
-          <h3>${p.skin}</h3><div class="swatches">${SKINS.map((s) => `<button class="swatch" data-key="skin" data-v="${s}" style="--s:${s}"></button>`).join("")}</div>
-          <label class="check"><input type="checkbox" id="pAcc" ${a.acc ? "checked" : ""} /> ${p.acc}</label>
+          <h3>${p.acc}</h3>
+          <p class="acc-note">${p.accNote}</p>
+          ${Object.entries(ACC_SLOTS).map(([slot, t]) => `<div class="acc-slot"><small>${t[LANG]}</small><div class="acc-grid">${ACCESSORIES.filter((it) => it.slot === slot).map((it) => `<button class="acc" data-acc="${it.id}"><span>${it.emoji}</span>${it[LANG].name}${it.premium ? '<i class="acc-premium">✨</i>' : ""}${accLocked(it) ? '<i class="acc-lock">🔒</i>' : ""}</button>`).join("")}</div></div>`).join("")}
+          <p class="acc-from" id="accFrom"></p>
         </div>
       </div>
       <div class="room-line">🏯 ${info.place} · ${W().room} <b>${roomNumber(era, a.name)}</b></div>
@@ -170,6 +177,7 @@ function renderPalaceDresser(era) {
   const refresh = () => {
     app.querySelectorAll(".role").forEach((b) => b.classList.toggle("on", b.dataset.role === a.role));
     app.querySelectorAll(".swatch").forEach((b) => b.classList.toggle("on", a[b.dataset.key] === b.dataset.v));
+    app.querySelectorAll(".acc").forEach((b) => b.classList.toggle("on", a.acc.includes(b.dataset.acc)));
     app.querySelector("#roleDesc").textContent = `${ROLE_BASE[a.role].emoji} ${roleDesc(era.id, a.role)}`;
     preview?.update(palaceAvatarOpts(era.id, a));
   };
@@ -177,7 +185,6 @@ function renderPalaceDresser(era) {
     b.addEventListener("click", () => {
       a.role = b.dataset.role;
       Object.assign(a, defaultLook(era.id, a.role));
-      app.querySelector("#pAcc").checked = a.acc;
       refresh();
     })
   );
@@ -187,10 +194,20 @@ function renderPalaceDresser(era) {
       refresh();
     })
   );
-  app.querySelector("#pAcc").addEventListener("change", (e) => {
-    a.acc = e.target.checked;
-    refresh();
-  });
+  // 장신구: 칸마다 하나씩, 같은 걸 다시 누르면 빼요
+  app.querySelectorAll(".acc").forEach((b) =>
+    b.addEventListener("click", () => {
+      const it = accItem(b.dataset.acc);
+      const from = app.querySelector("#accFrom");
+      if (accLocked(it)) {
+        from.textContent = `🔒 ${p.accSoon}`;
+        return;
+      }
+      a.acc = a.acc.includes(it.id) ? a.acc.filter((x) => x !== it.id) : [...a.acc.filter((x) => accItem(x).slot !== it.slot), it.id];
+      from.textContent = a.acc.includes(it.id) ? `${it.emoji} ${it[LANG].name} · ${it[LANG].from}${it.premium ? ` ✨ ${p.accFree}` : ""}` : "";
+      refresh();
+    })
+  );
   const nameInput = app.querySelector("#pName");
   app.querySelector("#dice").addEventListener("click", () => (nameInput.value = randomNick()));
   app.querySelector("[data-go]").addEventListener("click", (e) => (location.hash = e.currentTarget.dataset.go));
@@ -348,6 +365,7 @@ function createPalaceLevel(era) {
       def.build(api, kit);
       const player = placePeople(api, kit, era, def, info, a);
       if (typeof placeActivities === "function") placeActivities(api, kit, era, player);
+      placeTimeGate(api, kit, era, def, a);
       kit.finish();
       startTogether(api, era, a, player);
     },
@@ -409,8 +427,8 @@ function safeLook(l = {}) {
     weapon: l.weapon === "sword" ? "sword" : undefined,
     robe: color(l.robe, "#efe6cf"),
     deco: color(l.deco, "#b3262d"),
-    skin: color(l.skin, "#f1c7a1"),
-    acc: !!l.acc,
+    skin: "#f1c7a1",
+    acc: accList(l.acc),
   };
 }
 // 아바타끼리 주고받는 인사말: 번호만 보내서, 받는 사람은 자기 언어로 읽어요
@@ -1110,4 +1128,66 @@ function palaceTextures() {
     });
   });
   return { lattice, tile, bakseok, irwol, mural };
+}
+
+/* ---------- 시간의 문: 언제든 다른 시대 궁궐로 ---------- */
+const GATE_TEXT = {
+  ko: { title: "시간의 문", lead: "어느 시대로 건너갈까요? 지금 캐릭터 그대로 그 시대 궁궐에 들어가요.", here: "지금 여기", home: "🏠 처음 화면", about: (n) => `📖 ${n} 시대 이야기`, label: "⏳ 시간의 문" },
+  en: { title: "Time Gate", lead: "Which era shall we travel to? You'll enter that era's palace as your current character.", here: "You are here", home: "🏠 Home", about: (n) => `📖 About ${n}`, label: "⏳ Time Gate" },
+};
+function placeTimeGate(api, kit, era, def, a) {
+  const g = GATE_TEXT[LANG];
+  const go = (id) => {
+    // 그 시대에 만든 캐릭터가 없으면 지금 캐릭터(신분·이름·장신구)를 그 시대 옷으로 데려가요
+    if (!loadPalaceAvatar(id)) savePalaceAvatar(id, { role: a.role, ...defaultLook(id, a.role), acc: accList(a.acc), name: a.name });
+    location.hash = `world/${id}`;
+  };
+  api.timeGate = {
+    kind: "custom",
+    count: false,
+    emoji: "⏳",
+    name: g.title,
+    render(body, close) {
+      body.innerHTML = `<p>${g.lead}</p><div class="gate-grid">${eras()
+        .map((e) => `<button class="gate-era${e.id === era.id ? " here" : ""}" data-id="${e.id}" style="--c:${e.color}" ${e.id === era.id ? "disabled" : ""}><span>${e.emoji}</span><b>${e.name}</b><small>${e.id === era.id ? g.here : palaceInfo(e.id).place}</small></button>`)
+        .join("")}</div><div class="actions"><button class="btn ghost" data-go="era/${era.id}">${g.about(era.name)}</button><button class="btn ghost" data-go="">${g.home}</button></div>`;
+      body.querySelectorAll(".gate-era:not(.here)").forEach((b) => b.addEventListener("click", () => go(b.dataset.id)));
+      body.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => (location.hash = b.dataset.go)));
+      void close;
+    },
+  };
+  // 입구 옆에 빛나는 문을 세워요 (가로막히지 않는 자리를 찾아서)
+  const [sx, sz, ry] = def.spawn;
+  const fx = Math.sin(ry), fz = Math.cos(ry); // 처음 바라보는 방향
+  const rx = Math.cos(ry), rz = -Math.sin(ry); // 오른쪽
+  const spots = [[4.5, 1], [-4.5, 1], [4.5, 3], [-4.5, 3], [6, 0], [-6, 0], [3, -2]];
+  let gx = sx + rx * 4.5, gz = sz + rz * 4.5;
+  for (const [side, fwd] of spots) {
+    const x = sx + rx * side + fx * fwd, z = sz + rz * side + fz * fwd;
+    const free = [-1, 0, 1].every((k) => api.floorAt(x + rx * k, z + rz * k) === api.floorAt(sx, sz));
+    if (free) {
+      gx = x;
+      gz = z;
+      break;
+    }
+  }
+  const grp = new THREE.Group();
+  grp.position.set(gx, api.floorAt(gx, gz), gz);
+  grp.rotation.y = Math.atan2(sx - gx, sz - gz);
+  const stone = kit.mat("#8a7f72");
+  [-0.9, 0.9].forEach((x) => kit.box(0.3, 2.6, 0.3, stone, x, 1.3, 0, grp));
+  kit.box(2.4, 0.3, 0.4, stone, 0, 2.7, 0, grp);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.08, 10, 40), new THREE.MeshBasicMaterial({ color: 0xf3d27a }));
+  ring.position.set(0, 1.35, 0);
+  grp.add(ring);
+  const veil = new THREE.Mesh(new THREE.CircleGeometry(0.72, 40), new THREE.MeshBasicMaterial({ color: 0x8fb8ff, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+  veil.position.set(0, 1.35, 0);
+  grp.add(veil);
+  api.scene.add(grp);
+  api.addInteract(grp, { ...api.timeGate, labelHtml: g.label, labelCls: "gate", labelHeight: 3.2 }, 1.2, 2.8);
+  // 천천히 빛이 돌아요
+  api.onTick((dt, t) => {
+    ring.rotation.z = t * 0.8;
+    veil.material.opacity = 0.4 + Math.sin(t * 2) * 0.15;
+  });
 }

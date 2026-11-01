@@ -63,6 +63,7 @@ const WSTR = {
     keep: "계속 둘러보기",
     leaveQ: "현재로 돌아갈까요?",
     leave: "나가기",
+    gate: "시간의 문",
     complete: "🎉 모든 곳을 둘러봤어요! 이제 시험관에게 가 보세요.",
     progress: "탐험",
     map: "🗺️ 지도",
@@ -128,6 +129,7 @@ const WSTR = {
     keep: "Keep exploring",
     leaveQ: "Return to the present?",
     leave: "Leave",
+    gate: "Time Gate",
     complete: "🎉 You've explored everything! Now visit the Examiner.",
     progress: "Explored",
     map: "🗺️ Map",
@@ -243,7 +245,7 @@ function runEngine(era, root, level, holder) {
     <div class="w-labels" id="wLabels"></div>
     <div class="w-top">
       <div class="w-left">
-        <button class="w-icon" id="wExit" aria-label="${w.leave}">⎋</button>
+        <button class="w-pill w-btn w-gate" id="wExit" aria-label="${w.gate}">⏳ <b>${w.gate}</b></button>
         <div class="w-room">${level.icon || "🏯"} <b>${level.place}</b><span>${level.roomText}</span></div>
       </div>
       <div class="w-right" id="wRight">
@@ -455,7 +457,8 @@ function runEngine(era, root, level, holder) {
       }
     }
   };
-  root.querySelector("#wExit").addEventListener("click", () => openDialog({ kind: "exit", emoji: "🚪", name: w.leave }));
+  // 시간의 문: 궁궐에서는 다른 시대로 바로 건너가는 창을 열어요
+  root.querySelector("#wExit").addEventListener("click", () => (api.timeGate ? openDialog(api.timeGate) : openDialog({ kind: "exit", emoji: "🚪", name: w.leave })));
 
   // 지도: 장소로 순간이동
   root.querySelector("#wMap")?.addEventListener("click", () => {
@@ -1255,7 +1258,7 @@ function makeStars(rand, count, size) {
 /* ---------- 아바타 ---------- */
 // body: "robe"(도포·곤룡포·단령) | "dress"(저고리·당의 + 치마)
 // hat: topknot·band·gat·crown·helmet·western·bald + 궁궐용 ikseon(익선관)·samo(사모)·jeonrip(전립)·gache(어여머리)·princess(댕기머리)·bun(쪽머리)·naegwan
-// deco: 흉배·띠(robe) 또는 치마(dress) 색, patch: round(보)·square(흉배), acc: 노리개, weapon: sword·spear
+// deco: 흉배·띠(robe) 또는 치마(dress) 색, patch: round(보)·square(흉배), acc: 장신구 id 목록(shop.js), weapon: sword·spear
 function makeAvatar({ robe, sash, hat, scale = 1, skin = "#f1c7a1", body = "robe", deco, patch, acc, weapon }) {
   const g = new THREE.Group();
   const inner = new THREE.Group();
@@ -1299,11 +1302,6 @@ function makeAvatar({ robe, sash, hat, scale = 1, skin = "#f1c7a1", body = "robe
       if (patch === "round") put(new THREE.CircleGeometry(0.09, 16), m("#b3262d"), 0, 0.965, 0.345).rotation.x = -0.18;
     }
   }
-  if (acc) {
-    // 노리개
-    put(new THREE.SphereGeometry(0.05, 8, 8), m("#b3262d"), -0.16, 0.86, 0.33);
-    put(new THREE.ConeGeometry(0.06, 0.24, 8), m(deco || "#d9a62e"), -0.16, 0.7, 0.33).rotation.x = Math.PI;
-  }
 
   const arm = (side) => {
     const pivot = new THREE.Group();
@@ -1315,6 +1313,8 @@ function makeAvatar({ robe, sash, hat, scale = 1, skin = "#f1c7a1", body = "robe
     return pivot;
   };
   const armL = arm(-1), armR = arm(1);
+  // 장신구 (shop.js): 노리개·부채·달항아리·반가사유상 미니어처 등
+  if (typeof accList === "function") accList(acc).forEach((id) => buildAccessory(id, { put, m, inner, armL, body }));
   if (weapon === "sword") {
     const sw = put(new THREE.BoxGeometry(0.05, 0.8, 0.07), m("#3b2a20"), -0.42, 0.62, 0.05);
     sw.rotation.z = 0.25;

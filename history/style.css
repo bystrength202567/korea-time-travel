@@ -498,3 +498,10 @@ body.in-world main { max-width: none; padding: 0; }
 @media (max-width: 480px) { .gate-grid { grid-template-columns: repeat(2, 1fr); } }
 .w-actions button[data-action="gate"] { color: #f3d27a; }
 .w-actions button[data-action="gate"] span { filter: drop-shadow(0 0 6px #f3d27a88); }
+
+/* 지금 접속 · 방문자 수 */
+.live-chip { cursor: default; color: #9be7b4; }
+.live-chip b { color: #fffcf2; }
+.live-stats { margin: 14px auto 0; font-size: 14px; color: var(--muted); }
+.live-stats b { color: var(--gold); }
+.era-live { display: inline-block; margin-top: 6px; margin-left: 6px; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; color: #9be7b4; background: #1e4a3266; border: 1px solid #9be7b455; }

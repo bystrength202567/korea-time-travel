@@ -117,6 +117,57 @@ const Backend = {
     this.user = null;
   },
 
+  // 방문자 번호: 이 브라우저에서 무작위로 한 번 만들어요 (누구인지 알 수 없는 번호)
+  visitorId() {
+    let v = null;
+    try {
+      v = localStorage.getItem("dalbit-visitor");
+      if (!v) {
+        v = window.crypto?.randomUUID ? crypto.randomUUID() : `v-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+        localStorage.setItem("dalbit-visitor", v);
+      }
+    } catch {
+      v ||= `v-${Math.random().toString(36).slice(2, 14)}`;
+    }
+    return v;
+  },
+  // 방문 기록 + 방문자 수 (supabase.sql의 record_visit 함수). 함수가 아직 없으면 null
+  async recordVisit() {
+    if (!this.client) return null;
+    try {
+      const { data, error } = await this.client.rpc("record_visit", { vid: this.visitorId() });
+      return error ? null : data;
+    } catch {
+      return null;
+    }
+  },
+  // 사이트 전체에 지금 들어와 있는 사람 (어느 화면에 있든). 저장하지 않고 실시간으로만 세요
+  joinSite(onChange) {
+    if (!this.client) return null;
+    const ch = this.client.channel("site:online", { config: { presence: { key: this.visitorId() } } });
+    let meta = { era: null };
+    let ready = false;
+    ch.on("presence", { event: "sync" }, () => {
+      const people = Object.values(ch.presenceState()).map((list) => list[list.length - 1] || {});
+      const byEra = {};
+      people.forEach((m) => m.era && (byEra[m.era] = (byEra[m.era] || 0) + 1));
+      onChange({ total: people.length, byEra });
+    });
+    ch.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        ready = true;
+        ch.track(meta);
+      }
+    });
+    return {
+      setEra(era) {
+        if (meta.era === era) return;
+        meta = { era };
+        if (ready) ch.track(meta);
+      },
+    };
+  },
+
   // 같은 궁궐(방)에 들어온 사람들끼리 위치·동작을 주고받는 통로
   joinRoom(name, onMessage, onPeople) {
     if (this.client) {

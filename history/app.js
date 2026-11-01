@@ -24,6 +24,11 @@ const STR = {
     seeLife: "전생 결과 보기 →",
     chooseEra: "🕰️ 시대 선택",
     enterable: "🚪 입장 가능",
+    liveNow: (n) => `🟢 지금 <b>${n}</b>명 접속 중`,
+    liveTitle: "지금 접속 중인 사람",
+    visitsToday: (n) => `👀 오늘 방문 <b>${n}</b>명`,
+    visitsTotal: (n) => `누적 <b>${n}</b>명`,
+    eraLive: (n) => `👥 ${n}명 여행 중`,
     howTitle: "🧭 이렇게 즐겨요",
     how: [
       ["① 캐릭터로 입장", "시대를 골라 캐릭터를 정하고 3D 공간에 들어가요."],
@@ -107,6 +112,11 @@ const STR = {
     seeLife: "See my past lives →",
     chooseEra: "🕰️ Choose an Era",
     enterable: "🚪 Enter as a character",
+    liveNow: (n) => `🟢 <b>${n}</b> online now`,
+    liveTitle: "People online now",
+    visitsToday: (n) => `👀 <b>${n}</b> visitors today`,
+    visitsTotal: (n) => `<b>${n}</b> in total`,
+    eraLive: (n) => `👥 ${n} exploring`,
     howTitle: "🧭 How to Play",
     how: [
       ["① Enter as a character", "Choose an era, pick your character and step into a 3D world."],
@@ -267,8 +277,48 @@ function route() {
   else if (location.hash === "#life" && profile?.birth) renderLifeAll(profile);
   else if (location.hash === "#privacy") renderPrivacy();
   else renderHome();
+  Live.site?.setEra(era && m[1] === "world" ? era.id : null);
+  updateLive();
 }
 window.addEventListener("hashchange", route);
+
+/* ---------- 지금 접속한 사람 · 방문자 수 ---------- */
+const Live = { site: null, total: 0, byEra: {}, visits: null };
+function updateLive() {
+  const t = T();
+  const on = !!Live.site;
+  const chip = document.getElementById("liveChip");
+  chip.hidden = !on;
+  chip.title = t.liveTitle;
+  document.getElementById("liveCount").textContent = Math.max(1, Live.total);
+  const stats = document.getElementById("liveStats");
+  if (stats) {
+    const parts = [];
+    if (on) parts.push(t.liveNow(Math.max(1, Live.total)));
+    if (Live.visits) parts.push(`${t.visitsToday(Live.visits.today)} · ${t.visitsTotal(Live.visits.total)}`);
+    stats.innerHTML = parts.join(" &nbsp;·&nbsp; ");
+    stats.hidden = !parts.length;
+  }
+  document.querySelectorAll("[data-live]").forEach((el) => {
+    const n = Live.byEra[el.dataset.live] || 0;
+    el.hidden = !n;
+    el.textContent = n ? t.eraLive(n) : "";
+  });
+}
+function startLive() {
+  Live.site = Backend.joinSite(({ total, byEra }) => {
+    Live.total = total;
+    Live.byEra = byEra;
+    updateLive();
+  });
+  const m = location.hash.match(/^#world\/([\w-]+)/);
+  if (m) Live.site?.setEra(m[1]);
+  Backend.recordVisit().then((v) => {
+    Live.visits = v;
+    updateLive();
+  });
+  updateLive();
+}
 
 /* ---------- 홈 ---------- */
 function renderHome() {
@@ -280,6 +330,7 @@ function renderHome() {
       <p class="eyebrow">KOREAN HISTORY · TIME TRAVEL</p>
       <h1>${t.heroTitle}</h1>
       <p class="lead">${t.heroLead}</p>
+      <p class="live-stats" id="liveStats" hidden></p>
     </section>
 
     <section class="life-home fade-in">
@@ -301,6 +352,7 @@ function renderHome() {
           <div class="period">${e.period}</div>
           <p>${e.tagline}</p>
           <span class="enter-tag">${t.palaceTag(palaceInfo(e.id).place)}</span>
+          <span class="era-live" data-live="${e.id}" hidden></span>
           ${stamps[e.id] ? `<span class="stamp" title="${t.passed}">🏮</span>` : ""}
         </button>`).join("")}
     </div>
@@ -876,13 +928,13 @@ function renderPrivacy() {
     <h1>개인정보 처리방침</h1>
     <p class="lead">${op}(이하 '운영자')는 「개인정보 보호법」에 따라 '달빛 한국사 여행' 이용자의 개인정보를 다음과 같이 처리합니다.</p>
     <h2>1. 수집하는 항목</h2>
-    <ul><li>필수: 이메일 주소, 국적, 이름(닉네임 가능), 나이 구분(만 14세 이상/미만)</li><li>만 14세 미만: 보호자 이메일, 보호자 동의 여부</li><li>이용 기록: 퀴즈 도장 획득 기록, 꾸민 캐릭터 정보</li><li>함께 접속할 때: 궁궐 안에서의 이름·캐릭터·위치·동작 (저장하지 않고 실시간으로만 다른 접속자에게 보여 줌)</li></ul>
+    <ul><li>필수: 이메일 주소, 국적, 이름(닉네임 가능), 나이 구분(만 14세 이상/미만)</li><li>만 14세 미만: 보호자 이메일, 보호자 동의 여부</li><li>이용 기록: 퀴즈 도장 획득 기록, 꾸민 캐릭터 정보</li><li>함께 접속할 때: 궁궐 안에서의 이름·캐릭터·위치·동작 (저장하지 않고 실시간으로만 다른 접속자에게 보여 줌)</li><li>방문 통계(회원이 아니어도): 브라우저에서 무작위로 만든 방문 번호와 방문 날짜 (누구인지 알 수 없으며, 방문자 수를 세는 데만 써요)</li></ul>
     <h2>2. 이용 목적</h2>
-    <ul><li>회원 확인과 궁궐 입장</li><li>학습 기록(도장) 저장과 다른 기기에서 이어 하기</li><li>같은 궁궐에 접속한 사람들에게 내 캐릭터를 보여 주기</li></ul>
+    <ul><li>회원 확인과 궁궐 입장</li><li>학습 기록(도장) 저장과 다른 기기에서 이어 하기</li><li>같은 궁궐에 접속한 사람들에게 내 캐릭터를 보여 주기</li><li>지금 접속한 사람 수와 방문자 수 보여 주기</li></ul>
     <h2>3. 보관 기간</h2>
     <p>회원 탈퇴를 하면 회원 정보와 기록을 지체 없이 지웁니다.</p>
     <h2>4. 처리 위탁과 국외 이전</h2>
-    <ul><li>Supabase Inc.: 회원 정보·기록 저장과 로그인 메일 발송 (저장 지역은 운영자가 선택한 서버 지역)</li><li>Vercel Inc.: 웹사이트 호스팅</li></ul>
+    <ul><li>Supabase Inc.: 회원 정보·기록 저장과 로그인 메일 발송 (저장 지역은 운영자가 선택한 서버 지역)</li><li>GitHub Inc.: 웹사이트 호스팅 (GitHub Pages)</li></ul>
     <p>위 업체는 해외에 서버가 있을 수 있으며, 서비스 제공을 위해 필요한 범위에서만 정보가 이전됩니다. 이 외에 제3자에게 제공하지 않습니다.</p>
     <h2>5. 만 14세 미만 아동</h2>
     <p>만 14세 미만 아동은 법정대리인(보호자)의 동의를 받아 가입할 수 있으며, 보호자는 아동 정보의 열람·정정·삭제를 요청할 수 있습니다.</p>
@@ -890,18 +942,18 @@ function renderPrivacy() {
     <p>언제든 상단의 회원 표시를 눌러 내 정보를 보고, 회원 탈퇴로 모든 정보를 지울 수 있습니다. 그 밖의 요청은 아래로 연락해 주세요.</p>
     <h2>7. 개인정보 보호책임자와 문의</h2>
     <p>${op} · ${contact}</p>
-    <p class="note">시행일: 2026년 10월 30일</p>`;
+    <p class="note">시행일: 2026년 11월 1일 (방문 통계 추가)</p>`;
   const en = `
     <h1>Privacy Policy</h1>
     <p class="lead">${op} ("Operator") handles the personal information of 'Moonlit Korean History' users as follows, in line with Korea's Personal Information Protection Act.</p>
     <h2>1. What we collect</h2>
-    <ul><li>Required: email, nationality, name (a nickname is fine), age group (14+ / under 14)</li><li>Under 14: guardian email and guardian consent</li><li>Activity: quiz stamps and your character design</li><li>When playing together: your name, character, position and actions inside a palace (shown live to other visitors, not stored)</li></ul>
+    <ul><li>Required: email, nationality, name (a nickname is fine), age group (14+ / under 14)</li><li>Under 14: guardian email and guardian consent</li><li>Activity: quiz stamps and your character design</li><li>When playing together: your name, character, position and actions inside a palace (shown live to other visitors, not stored)</li><li>Visit statistics (members or not): a random visit number made in your browser and the visit date (it cannot identify you and is used only to count visitors)</li></ul>
     <h2>2. Why</h2>
-    <ul><li>To verify members and let them enter the palaces</li><li>To save learning records (stamps) across devices</li><li>To show your character to others in the same palace</li></ul>
+    <ul><li>To verify members and let them enter the palaces</li><li>To save learning records (stamps) across devices</li><li>To show your character to others in the same palace</li><li>To show how many people are online and how many have visited</li></ul>
     <h2>3. Retention</h2>
     <p>Your member data and records are deleted without delay when you delete your account.</p>
     <h2>4. Processors and international transfer</h2>
-    <ul><li>Supabase Inc.: storing member data and sending sign-in emails (in the server region chosen by the Operator)</li><li>Vercel Inc.: website hosting</li></ul>
+    <ul><li>Supabase Inc.: storing member data and sending sign-in emails (in the server region chosen by the Operator)</li><li>GitHub Inc.: website hosting (GitHub Pages)</li></ul>
     <p>These providers may operate servers abroad; data is transferred only as needed to provide the service. We do not share data with any other third party.</p>
     <h2>5. Children under 14</h2>
     <p>Children under 14 may join with consent from a parent or legal guardian, who may request access, correction or deletion of the child's data.</p>
@@ -909,7 +961,7 @@ function renderPrivacy() {
     <p>Tap the member chip at the top anytime to view your details, or delete your account to erase everything. For other requests, contact us below.</p>
     <h2>7. Privacy officer & contact</h2>
     <p>${op} · ${contact}</p>
-    <p class="note">Effective: October 30, 2026</p>`;
+    <p class="note">Effective: November 1, 2026 (visit statistics added)</p>`;
   delete app.dataset.era;
   app.innerHTML = `<button class="back" data-go="">${T().home}</button><article class="policy fade-in">${LANG === "en" ? en : ko}</article>`;
   app.querySelector("[data-go]").addEventListener("click", () => (location.hash = ""));
@@ -1011,6 +1063,7 @@ applyStaticText();
 updateStampCount();
 // 서버 모드라면 로그인 상태를 먼저 확인한 뒤 화면을 그려요 (이메일 링크로 돌아온 경우 가입 마무리)
 Backend.init().finally(() => {
+  startLive();
   updateStampCount();
   updateMemberChip();
   if (/access_token|error_description/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);

@@ -1,6 +1,6 @@
 // 시대별 3D 입장 공간: 공용 엔진(이동·충돌·대화·동작) + 시대별 공간. 조선은 palace.js의 경복궁을 사용해요.
 const THREE_URL = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
-const ACTIONS = [["ganggang", "🌕"], ["meong", "🧘"], ["stroll", "🚶"], ["read", "📖"], ["eat", "🍚"], ["sleep", "😴"], ["rest", "🍵"], ["greet", "🙇"]];
+const ACTIONS = [["gate", "⏳"], ["ganggang", "🌕"], ["meong", "🧘"], ["stroll", "🚶"], ["read", "📖"], ["eat", "🍚"], ["sleep", "😴"], ["rest", "🍵"], ["greet", "🙇"]];
 
 const WSTR = {
   ko: {
@@ -21,7 +21,7 @@ const WSTR = {
     stone: (i) => `이야기 비석 ${i}`,
     gate: "시간의 문",
     talk: "말 걸기",
-    actions: { ganggang: "강강술래", meong: "멍때리기", stroll: "산책하기", read: "책읽기", eat: "식사하기", sleep: "잠자기", rest: "휴식하기", greet: "인사하기" },
+    actions: { gate: "시간의 문", ganggang: "강강술래", meong: "멍때리기", stroll: "산책하기", read: "책읽기", eat: "식사하기", sleep: "잠자기", rest: "휴식하기", greet: "인사하기" },
     ganggangSolo: "🌕 강강술래~ 궁녀들과 손잡고 둥글게 돌아요. 다른 사람이 함께 누르면 같이 돌아요!",
     ganggangGroup: (n) => `🌕 강강술래~ ${n}명이 함께 돌아요!`,
     songs: ["강강술래~", "달 떠온다 달 떠온다~", "강강술래~", "동해 동천 달 떠온다~"],
@@ -87,7 +87,7 @@ const WSTR = {
     stone: (i) => `Story Stone ${i}`,
     gate: "Gate of Time",
     talk: "Talk",
-    actions: { ganggang: "Ganggang", meong: "Zone out", stroll: "Stroll", read: "Read", eat: "Dine", sleep: "Sleep", rest: "Rest", greet: "Greet" },
+    actions: { gate: "Time Gate", ganggang: "Ganggang", meong: "Zone out", stroll: "Stroll", read: "Read", eat: "Dine", sleep: "Sleep", rest: "Rest", greet: "Greet" },
     ganggangSolo: "🌕 Ganggangsullae! Hold hands with the court ladies and circle around. Others who join will dance with you!",
     ganggangGroup: (n) => `🌕 Ganggangsullae! ${n} people dancing together!`,
     songs: ["Ganggang-sullae~", "The moon is rising~", "Ganggang-sullae~", "Over the eastern sea~"],
@@ -848,6 +848,8 @@ function runEngine(era, root, level, holder) {
   actionBtns.forEach((b) =>
     b.addEventListener("click", () => {
       const type = b.dataset.action;
+      // 시간의 문: 다른 시대로 건너가는 창을 열어요 (지금 하던 동작은 그대로)
+      if (type === "gate") return root.querySelector("#wExit").click();
       moveTarget = pending = null;
       if (type === "greet") {
         setPlayerPose(null);
